@@ -200,6 +200,8 @@ import {
   getWorkingDirectoryDiff,
   isCoAuthoredByTrailer,
   pull as pullRepo,
+  fetch as fetchRepo,
+  merge as mergeBranch,
   push as pushRepo,
   renameBranch,
   saveGitIgnore,
@@ -401,6 +403,11 @@ import {
 } from './notifications-store'
 import * as ipcRenderer from '../ipc-renderer'
 import { pathExists } from '../path-exists'
+import {
+  getFastForwardBlocker,
+  IFetchAndPullOutcome,
+  IFetchAndPullResult,
+} from '../fetch-and-pull-all'
 import { offsetFromNow } from '../offset-from'
 import { findContributionTargetDefaultBranch } from '../branch'
 import { ValidNotificationPullRequestReview } from '../valid-notification-pull-request-review'
@@ -719,6 +726,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
   private hasUserViewedStash = false
 
   private repositoryIndicatorsEnabled: boolean
+
+  private isFetchAndPullAllInProgress = false
 
   /** Which step the user needs to complete next in the onboarding tutorial */
   private currentOnboardingTutorialStep = TutorialStep.NotApplicable
@@ -1334,6 +1343,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       optOutOfUsageTracking: this.statsStore.getOptOut(),
       currentOnboardingTutorialStep: this.currentOnboardingTutorialStep,
       repositoryIndicatorsEnabled: this.repositoryIndicatorsEnabled,
+      isFetchAndPullAllInProgress: this.isFetchAndPullAllInProgress,
       commitSpellcheckEnabled: this.commitSpellcheckEnabled,
       currentDragElement: this.currentDragElement,
       lastThankYou: this.lastThankYou,
@@ -5477,6 +5487,104 @@ export class AppStore extends TypedBaseStore<IAppState> {
         isPushPullFetchInProgress: false,
       }))
       this.emitUpdate()
+    }
+  }
+
+  /** This shouldn't be called directly. See `Dispatcher`. */
+  public async _fetchAndPullAllRepositories(): Promise<void> {
+    if (this.isFetchAndPullAllInProgress) {
+      return
+    }
+
+    this.isFetchAndPullAllInProgress = true
+    this.emitUpdate()
+
+    const results = new Array<IFetchAndPullResult>()
+    try {
+      for (const repository of [...this.repositories]) {
+        const repositoryName = repository.alias ?? repository.name
+        const result = await this.fetchAndFastForward(repository).catch(
+          (e: Error): IFetchAndPullOutcome => ({
+            outcome: 'failed',
+            detail: e.message,
+          })
+        )
+        results.push({ repositoryName, ...result })
+      }
+    } finally {
+      this.isFetchAndPullAllInProgress = false
+      this.emitUpdate()
+    }
+
+    this._showPopup({ type: PopupType.FetchAndPullAllResult, results })
+  }
+
+  /** Fetch the current remote, then fast-forward the current branch. */
+  private async fetchAndFastForward(
+    repository: Repository
+  ): Promise<IFetchAndPullOutcome> {
+    if (repository.missing || !(await pathExists(repository.path))) {
+      return { outcome: 'skipped', detail: 'Not found on disk' }
+    }
+
+    if (this.repositoryStateCache.get(repository).isPushPullFetchInProgress) {
+      return { outcome: 'skipped', detail: 'Another operation is running' }
+    }
+
+    const gitStore = this.gitStoreCache.get(repository)
+    await gitStore.loadStatus()
+    await gitStore.loadRemotes()
+    const remote = gitStore.currentRemote
+
+    if (remote === null) {
+      return { outcome: 'skipped', detail: 'No remote' }
+    }
+
+    await this.withPushPullFetch(repository, async () => {
+      try {
+        await fetchRepo(repository, remote, progress =>
+          this.updatePushPullFetchProgress(repository, progress)
+        )
+      } finally {
+        this.updatePushPullFetchProgress(repository, null)
+      }
+    })
+
+    try {
+      const status = await gitStore.loadStatus()
+      if (status === null) {
+        return { outcome: 'failed', detail: 'Could not read the status' }
+      }
+
+      const blocker = getFastForwardBlocker(status)
+      const upstream = status.currentUpstreamBranch
+      if (blocker !== null) {
+        return { outcome: 'skipped', detail: blocker }
+      }
+      if (upstream === undefined || !status.branchAheadBehind?.behind) {
+        return { outcome: 'up-to-date' }
+      }
+
+      const result = await mergeBranch(repository, upstream, { ffOnly: true })
+      return result === MergeResult.Failed
+        ? { outcome: 'failed', detail: 'Could not fast-forward' }
+        : { outcome: 'pulled' }
+    } finally {
+      await this.refreshAfterFetchAndPull(repository)
+    }
+  }
+
+  /** Refresh the list indicator, and the view if the repository is selected. */
+  private async refreshAfterFetchAndPull(repository: Repository) {
+    const status = await this.gitStoreCache.get(repository).loadStatus()
+    if (status !== null) {
+      await this.updateSidebarIndicator(repository, status)
+      this.emitUpdate()
+    }
+
+    const selected = this.selectedRepository
+    if (selected instanceof Repository && selected.id === repository.id) {
+      await this._refreshRepository(repository)
     }
   }
 

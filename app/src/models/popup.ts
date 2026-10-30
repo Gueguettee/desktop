@@ -28,6 +28,7 @@ import { BypassReasonType } from '../ui/secret-scanning/bypass-push-protection-d
 import { TerminalOutput, TerminalOutputListener } from '../lib/git'
 import type { IBYOKModel, IBYOKProvider } from '../lib/copilot/byok'
 import { IDeleteWorktreeOptions, WorktreeEntry } from './worktree'
+import { IFetchAndPullResult } from '../lib/fetch-and-pull-all'
 
 export enum PopupType {
   RenameBranch = 'RenameBranch',
@@ -124,6 +125,7 @@ export enum PopupType {
   ConfirmDeleteCopilotBYOKProvider = 'ConfirmDeleteCopilotBYOKProvider',
   CopilotConflictResolutionAlwaysNudge = 'CopilotConflictResolutionAlwaysNudge',
   DeleteWorktreeFailed = 'DeleteWorktreeFailed',
+  FetchAndPullAllResult = 'FetchAndPullAllResult',
 }
 
 interface IBasePopup {
@@ -220,6 +222,10 @@ export type PopupDetail =
       unPushedCommits?: number
     }
   | { type: PopupType.CLIInstalled }
+  | {
+      type: PopupType.FetchAndPullAllResult
+      results: ReadonlyArray<IFetchAndPullResult>
+    }
   | {
       type: PopupType.GenericGitAuthentication
       remoteUrl: string

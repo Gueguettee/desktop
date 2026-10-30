@@ -1,5 +1,6 @@
 /** A list of menu ids associated with the main menu in GitHub Desktop */
 export type MenuIDs =
+  | 'fetch-and-pull-all-repositories'
   | 'rename-branch'
   | 'delete-branch'
   | 'discard-all-changes'

@@ -24,6 +24,8 @@ export type MergeOptions = {
   readonly squash?: boolean
   /** Whether to bypass pre-merge and post-merge hooks */
   readonly noVerify?: boolean
+  /** Whether to refuse anything other than a fast-forward */
+  readonly ffOnly?: boolean
 } & HookCallbackOptions
 
 /** Merge the named branch into the current branch. */
@@ -46,6 +48,10 @@ export async function merge(
 
   if (options?.noVerify) {
     args.push('--no-verify')
+  }
+
+  if (options?.ffOnly) {
+    args.push('--ff-only')
   }
 
   args.push('--', branch)

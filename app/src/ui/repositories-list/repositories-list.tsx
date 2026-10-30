@@ -13,7 +13,7 @@ import { IMatches } from '../../lib/fuzzy-find'
 import { ILocalRepositoryState, Repository } from '../../models/repository'
 import { Dispatcher } from '../dispatcher'
 import { Button } from '../lib/button'
-import { Octicon } from '../octicons'
+import { Octicon, syncClockwise } from '../octicons'
 import * as octicons from '../octicons/octicons.generated'
 import { showContextualMenu } from '../../lib/menu-item'
 import { IMenuItem } from '../../lib/menu-item'
@@ -73,6 +73,9 @@ interface IRepositoriesListProps {
 
   /** The text entered by the user to filter their repository list */
   readonly filterText: string
+
+  /** Whether "Fetch and pull all repositories" is running. */
+  readonly isFetchAndPullAllInProgress: boolean
 
   readonly dispatcher: Dispatcher
 }
@@ -369,17 +372,40 @@ export class RepositoriesList extends React.Component<
   }
 
   private renderPostFilter = () => {
+    const inProgress = this.props.isFetchAndPullAllInProgress
+    const label = __DARWIN__
+      ? 'Fetch and Pull All Repositories'
+      : 'Fetch and pull all repositories'
+
     return (
-      <Button
-        className="new-repository-button"
-        onClick={this.onNewRepositoryButtonClick}
-        ariaExpanded={this.state.newRepositoryMenuExpanded}
-        onKeyDown={this.onNewRepositoryButtonKeyDown}
-      >
-        Add
-        <Octicon symbol={octicons.triangleDown} />
-      </Button>
+      <>
+        <Button
+          className="fetch-and-pull-all-button"
+          onClick={this.onFetchAndPullAllButtonClick}
+          disabled={inProgress}
+          ariaLabel={label}
+          tooltip={label}
+        >
+          <Octicon
+            className={inProgress ? 'spin' : undefined}
+            symbol={syncClockwise}
+          />
+        </Button>
+        <Button
+          className="new-repository-button"
+          onClick={this.onNewRepositoryButtonClick}
+          ariaExpanded={this.state.newRepositoryMenuExpanded}
+          onKeyDown={this.onNewRepositoryButtonKeyDown}
+        >
+          Add
+          <Octicon symbol={octicons.triangleDown} />
+        </Button>
+      </>
     )
+  }
+
+  private onFetchAndPullAllButtonClick = () => {
+    this.props.dispatcher.fetchAndPullAllRepositories()
   }
 
   private onNewRepositoryButtonKeyDown = (

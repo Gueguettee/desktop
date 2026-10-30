@@ -762,6 +762,11 @@ export class Dispatcher {
     return this.appStore._pull(repository)
   }
 
+  /** Fetch every repository and fast-forward the ones that can be. */
+  public fetchAndPullAllRepositories(): Promise<void> {
+    return this.appStore._fetchAndPullAllRepositories()
+  }
+
   /** Fetch a specific refspec for the repository. */
   public fetchRefspec(
     repository: Repository,

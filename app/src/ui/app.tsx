@@ -99,6 +99,7 @@ import { ConfirmRemoveRepository } from './remove-repository'
 import { TermsAndConditions } from './terms-and-conditions'
 import { PushBranchCommits } from './branches'
 import { CLIInstalled } from './cli-installed'
+import { FetchAndPullAllResultDialog } from './fetch-and-pull-all'
 import { GenericGitAuthentication } from './generic-git-auth'
 import { ShellError } from './shell'
 import { InitializeLFS, AttributeMismatch } from './lfs'
@@ -465,6 +466,8 @@ export class App extends React.Component<IAppProps, IAppState> {
         return this.pull()
       case 'fetch':
         return this.fetch()
+      case 'fetch-and-pull-all-repositories':
+        return this.props.dispatcher.fetchAndPullAllRepositories()
       case 'show-changes':
         return this.showChanges(true)
       case 'show-history':
@@ -2051,6 +2054,14 @@ export class App extends React.Component<IAppProps, IAppState> {
         return (
           <CLIInstalled key="cli-installed" onDismissed={onPopupDismissedFn} />
         )
+      case PopupType.FetchAndPullAllResult:
+        return (
+          <FetchAndPullAllResultDialog
+            key="fetch-and-pull-all-result"
+            results={popup.results}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
       case PopupType.GenericGitAuthentication:
         const onDismiss = () => {
           popup.onDismiss?.()
@@ -3408,6 +3419,7 @@ export class App extends React.Component<IAppProps, IAppState> {
         onOpenInExternalEditor={this.openInExternalEditor}
         externalEditorLabel={this.externalEditorLabel}
         shellLabel={useCustomShell ? undefined : selectedShell}
+        isFetchAndPullAllInProgress={this.state.isFetchAndPullAllInProgress}
         dispatcher={this.props.dispatcher}
       />
     )

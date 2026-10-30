@@ -74,6 +74,11 @@
     white-space: nowrap;
   }
 
+  .fetch-and-pull-all-button {
+    flex-shrink: 0;
+    margin-right: var(--spacing-half);
+  }
+
   .new-repository-button {
     flex-shrink: 0;
 
