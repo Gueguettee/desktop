@@ -1,0 +1,39 @@
+name: Build Windows installer
+
+# Run by hand only, to keep Actions usage low.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      # 'test' turns off the official auto-updater, which would replace this fork.
+      RELEASE_CHANNEL: test
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-ci-environment
+        with:
+          node-version: 24.22.1
+          arch: x64
+      - run: yarn build:prod
+        env:
+          npm_config_arch: x64
+          TARGET_ARCH: x64
+      # Unsigned: without GITHUB_ACTIONS it skips GitHub's own signing setup.
+      - run: env -u GITHUB_ACTIONS yarn package
+        shell: bash
+        env:
+          npm_config_arch: x64
+      - uses: actions/upload-artifact@v7
+        with:
+          name: GitHubDesktopSetup-x64
+          path: dist/GitHubDesktopSetup-x64.exe
+          if-no-files-found: error
+          retention-days: 7

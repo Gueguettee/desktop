@@ -19,6 +19,22 @@ The code is in `app/src/lib/fetch-and-pull-all.ts`,
 `AppStore._fetchAndPullAllRepositories` and
 `app/src/ui/fetch-and-pull-all/`.
 
+## Installing on Windows
+
+1. On GitHub, open **Actions**, pick **Build Windows installer** and click
+   **Run workflow**. It runs only when started by hand.
+2. When the run is green, download the `GitHubDesktopSetup-x64` artifact
+   from its page, unzip it and run `GitHubDesktopSetup-x64.exe`.
+3. Windows SmartScreen warns that the installer is unsigned: click
+   **More info**, then **Run anyway**.
+
+It installs over the official GitHub Desktop and keeps your repositories and
+settings. The build uses the `test` release channel, so it never auto-updates
+to the official release (which would remove this fork's features), and it
+shows an extra Test menu. To update, merge upstream and run the workflow
+again. The other upstream workflows are disabled on this fork, to save
+Actions minutes.
+
 ## Taking upstream updates
 
 ```bash
