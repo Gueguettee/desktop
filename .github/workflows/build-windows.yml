@@ -1,23 +1,50 @@
 name: Build Windows installer
 
-# Run by hand only, to keep Actions usage low.
+# Every push that changes the app publishes a release the installed app
+# updates itself from.
 on:
+  push:
+    branches: [development]
+    paths-ignore: ['**.md', 'docs/**']
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: build-windows
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: windows-2022
     timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
     env:
-      # 'test' turns off the official auto-updater, which would replace this fork.
+      # 'test' never updates from the official release, which would replace this fork.
       RELEASE_CHANNEL: test
+      # The updater reads RELEASES and the package from the latest release.
+      DESKTOP_E2E_UPDATES_URL:
+        https://github.com/${{ github.repository }}/releases/latest/download
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
+      # The updater only installs a higher version: 3.6.10 becomes 3.6.10042 on run 42.
+      - name: Set the version
+        run: |
+          node -e "
+            const fs = require('fs'), file = 'app/package.json'
+            const pkg = JSON.parse(fs.readFileSync(file))
+            const [major, minor, patch] = pkg.version.split('.')
+            const build = parseInt(patch) * 1000 + Number(process.env.GITHUB_RUN_NUMBER)
+            pkg.version = [major, minor, build].join('.')
+            fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n')
+            fs.appendFileSync(process.env.GITHUB_ENV, 'VERSION=' + pkg.version + '\n')
+          "
       - uses: ./.github/actions/setup-ci-environment
         with:
           node-version: 24.22.1
@@ -28,12 +55,16 @@ jobs:
           TARGET_ARCH: x64
       # Unsigned: without GITHUB_ACTIONS it skips GitHub's own signing setup.
       - run: env -u GITHUB_ACTIONS yarn package
-        shell: bash
         env:
           npm_config_arch: x64
-      - uses: actions/upload-artifact@v7
-        with:
-          name: GitHubDesktopSetup-x64
-          path: dist/GitHubDesktopSetup-x64.exe
-          if-no-files-found: error
-          retention-days: 7
+      - name: Publish the release
+        run: |
+          # RELEASES names the package without the architecture.
+          mv "dist/GitHubDesktop-$VERSION-x64-full.nupkg" "dist/GitHubDesktop-$VERSION-full.nupkg"
+          gh release create "fork-$VERSION" --latest --target "$GITHUB_SHA" \
+            --title "$VERSION" --notes "Built from $GITHUB_SHA." \
+            dist/RELEASES "dist/GitHubDesktop-$VERSION-full.nupkg" dist/GitHubDesktopSetup-x64.exe
+      - name: Keep the last three releases
+        run: |
+          gh release list --limit 100 --json tagName --jq '.[3:][].tagName' |
+            xargs -r -n 1 gh release delete --yes --cleanup-tag

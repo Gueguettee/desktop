@@ -397,11 +397,8 @@ export class App extends React.Component<IAppProps, IAppState> {
 
     this.props.dispatcher.installGlobalLFSFilters(false)
 
-    // We only want to automatically check for updates on beta and prod
-    if (
-      __RELEASE_CHANNEL__ !== 'development' &&
-      __RELEASE_CHANNEL__ !== 'test'
-    ) {
+    // This fork ships on the test channel and updates from its own releases.
+    if (__RELEASE_CHANNEL__ !== 'development') {
       setInterval(() => this.checkForUpdates(true), UpdateCheckInterval)
       this.checkForUpdates(true)
     } else if (await updateStore.isUpdateShowcase()) {

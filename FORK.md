@@ -36,26 +36,47 @@ and `app/src/ui/commit-all/`.
 
 ## Installing on Windows
 
-1. On GitHub, open **Actions**, pick **Build Windows installer** and click
-   **Run workflow**. It runs only when started by hand.
-2. When the run is green, download the `GitHubDesktopSetup-x64` artifact
-   from its page, unzip it and run `GitHubDesktopSetup-x64.exe`.
-3. Windows SmartScreen warns that the installer is unsigned: click
-   **More info**, then **Run anyway**.
+Install once by hand: on GitHub, open **Releases**, download
+`GitHubDesktopSetup-x64.exe` from the latest one and run it. Windows
+SmartScreen warns that the installer is unsigned: click **More info**, then
+**Run anyway**. It installs over the official GitHub Desktop and keeps your
+repositories and settings.
 
-It installs over the official GitHub Desktop and keeps your repositories and
-settings. The build uses the `test` release channel, so it never auto-updates
-to the official release (which would remove this fork's features), and it
-shows an extra Test menu. To update, merge upstream and run the workflow
-again. The other upstream workflows are disabled on this fork, to save
-Actions minutes.
+After that the app updates itself: it checks at startup and every four hours,
+downloads the new version and shows a banner to restart. **Help > About**
+checks at once.
 
-## Taking upstream updates
+## How updates are published
+
+`.github/workflows/build-windows.yml` runs on every push to `development`
+that changes more than docs, and by hand from **Actions**. It publishes a
+release holding the installer and the two files the updater reads, `RELEASES`
+and the `.nupkg` package, and keeps the last three releases. The app reads
+them from `releases/latest/download`.
+
+The updater only installs a higher version, so the build numbers itself:
+upstream `3.6.10` built by run 42 is `3.6.10042`.
+
+The build uses the `test` release channel, so it never updates to the
+official release (which would remove this fork's features), and it shows an
+extra Test menu. The other upstream workflows are disabled on this fork.
+
+## Following upstream
+
+`.github/workflows/follow-upstream.yml` merges the latest official release
+tag into `development` every day, which starts a build. It needs the
+repository secret `UPSTREAM_SYNC_TOKEN`: a fine-grained personal access token
+for this repository with **Contents** and **Workflows** set to read and
+write. When a merge conflicts, the run fails and GitHub emails you; merge by
+hand:
 
 ```bash
-git fetch upstream
-git merge upstream/development
+git fetch upstream --tags
+git merge release-<version>
 ```
+
+GitHub turns a scheduled workflow off after 60 days without a push; turn it
+back on from **Actions**.
 
 Keep the changes small and in their own files where possible, so these merges
 stay easy.
