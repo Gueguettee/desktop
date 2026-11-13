@@ -7,6 +7,7 @@ import {
   DefaultEditorLabel,
   DefaultShellLabel,
 } from '../lib/context-menu'
+import { isIncludedInCommitAll } from '../../lib/commit-all'
 
 interface IRepositoryListItemContextMenuConfig {
   repository: Repositoryish
@@ -20,6 +21,7 @@ interface IRepositoryListItemContextMenuConfig {
   onRemoveRepository: (repository: Repositoryish) => void
   onChangeRepositoryAlias: (repository: Repository) => void
   onRemoveRepositoryAlias: (repository: Repository) => void
+  onToggleIncludedInCommitAll: (repository: Repository) => void
   onCreateWorktree?: (repository: Repository) => void
   onShowWorktrees?: (repository: Repository) => void
 }
@@ -103,6 +105,13 @@ const buildAliasMenuItems = (
       action: () => config.onRemoveRepositoryAlias(repository),
     })
   }
+
+  items.push({
+    type: 'checkbox',
+    label: __DARWIN__ ? 'Include in Commit All' : 'Include in commit all',
+    checked: isIncludedInCommitAll(repository),
+    action: () => config.onToggleIncludedInCommitAll(repository),
+  })
 
   return items
 }

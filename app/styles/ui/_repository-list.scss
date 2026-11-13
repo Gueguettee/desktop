@@ -178,6 +178,15 @@
     margin-right: var(--spacing-half);
   }
 
+  .commit-all-indicator {
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--color-new);
+    margin-left: var(--spacing-half);
+  }
+
   .change-indicator-wrapper {
     display: flex;
     min-width: 12px;

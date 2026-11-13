@@ -100,6 +100,7 @@ import { TermsAndConditions } from './terms-and-conditions'
 import { PushBranchCommits } from './branches'
 import { CLIInstalled } from './cli-installed'
 import { FetchAndPullAllResultDialog } from './fetch-and-pull-all'
+import { CommitAllResultDialog } from './commit-all'
 import { GenericGitAuthentication } from './generic-git-auth'
 import { ShellError } from './shell'
 import { InitializeLFS, AttributeMismatch } from './lfs'
@@ -2062,6 +2063,14 @@ export class App extends React.Component<IAppProps, IAppState> {
             onDismissed={onPopupDismissedFn}
           />
         )
+      case PopupType.CommitAllResult:
+        return (
+          <CommitAllResultDialog
+            key="commit-all-result"
+            results={popup.results}
+            onDismissed={onPopupDismissedFn}
+          />
+        )
       case PopupType.GenericGitAuthentication:
         const onDismiss = () => {
           popup.onDismiss?.()
@@ -3420,6 +3429,7 @@ export class App extends React.Component<IAppProps, IAppState> {
         externalEditorLabel={this.externalEditorLabel}
         shellLabel={useCustomShell ? undefined : selectedShell}
         isFetchAndPullAllInProgress={this.state.isFetchAndPullAllInProgress}
+        isCommitAllInProgress={this.state.isCommitAllInProgress}
         dispatcher={this.props.dispatcher}
       />
     )
@@ -3616,6 +3626,8 @@ export class App extends React.Component<IAppProps, IAppState> {
       externalEditorLabel: this.externalEditorLabel,
       onChangeRepositoryAlias: onChangeRepositoryAlias,
       onRemoveRepositoryAlias: onRemoveRepositoryAlias,
+      onToggleIncludedInCommitAll:
+        this.props.dispatcher.toggleIncludedInCommitAll,
       onViewOnGitHub: this.viewOnGitHub,
       onCreateWorktree: enableWorktreeSupport() ? onCreateWorktree : undefined,
       onShowWorktrees: enableWorktreeSupport() ? onShowWorktrees : undefined,

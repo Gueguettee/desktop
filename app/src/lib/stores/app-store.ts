@@ -408,6 +408,13 @@ import {
   IFetchAndPullOutcome,
   IFetchAndPullResult,
 } from '../fetch-and-pull-all'
+import {
+  getCommitBlocker,
+  getCommitSummary,
+  ICommitAllOutcome,
+  ICommitAllResult,
+  isIncludedInCommitAll,
+} from '../commit-all'
 import { offsetFromNow } from '../offset-from'
 import { findContributionTargetDefaultBranch } from '../branch'
 import { ValidNotificationPullRequestReview } from '../valid-notification-pull-request-review'
@@ -728,6 +735,8 @@ export class AppStore extends TypedBaseStore<IAppState> {
   private repositoryIndicatorsEnabled: boolean
 
   private isFetchAndPullAllInProgress = false
+
+  private isCommitAllInProgress = false
 
   /** Which step the user needs to complete next in the onboarding tutorial */
   private currentOnboardingTutorialStep = TutorialStep.NotApplicable
@@ -1344,6 +1353,7 @@ export class AppStore extends TypedBaseStore<IAppState> {
       currentOnboardingTutorialStep: this.currentOnboardingTutorialStep,
       repositoryIndicatorsEnabled: this.repositoryIndicatorsEnabled,
       isFetchAndPullAllInProgress: this.isFetchAndPullAllInProgress,
+      isCommitAllInProgress: this.isCommitAllInProgress,
       commitSpellcheckEnabled: this.commitSpellcheckEnabled,
       currentDragElement: this.currentDragElement,
       lastThankYou: this.lastThankYou,
@@ -5585,6 +5595,115 @@ export class AppStore extends TypedBaseStore<IAppState> {
     const selected = this.selectedRepository
     if (selected instanceof Repository && selected.id === repository.id) {
       await this._refreshRepository(repository)
+    }
+  }
+
+  /** This shouldn't be called directly. See `Dispatcher`. */
+  public async _commitAllRepositories(): Promise<void> {
+    if (this.isCommitAllInProgress) {
+      return
+    }
+
+    this.isCommitAllInProgress = true
+    this.emitUpdate()
+
+    const results = new Array<ICommitAllResult>()
+    try {
+      for (const repository of this.repositories.filter(
+        isIncludedInCommitAll
+      )) {
+        const repositoryName = repository.alias ?? repository.name
+        const result = await this.commitAllChanges(repository).catch(
+          (e: Error): ICommitAllOutcome => ({
+            outcome: 'failed',
+            detail: e.message,
+          })
+        )
+        results.push({ repositoryName, ...result })
+      }
+    } finally {
+      this.isCommitAllInProgress = false
+      this.emitUpdate()
+    }
+
+    this._showPopup({ type: PopupType.CommitAllResult, results })
+  }
+
+  /** Commit every change of the repository, with a message describing them. */
+  private async commitAllChanges(
+    repository: Repository
+  ): Promise<ICommitAllOutcome> {
+    if (repository.missing || !(await pathExists(repository.path))) {
+      return { outcome: 'skipped', detail: 'Not found on disk' }
+    }
+
+    if (this.repositoryStateCache.get(repository).isCommitting) {
+      return { outcome: 'skipped', detail: 'Another commit is running' }
+    }
+
+    const status = await this.gitStoreCache.get(repository).loadStatus()
+    if (status === null) {
+      return { outcome: 'failed', detail: 'Could not read the status' }
+    }
+
+    const files = status.workingDirectory.withIncludeAllFiles(true).files
+    if (files.length === 0) {
+      return { outcome: 'nothing-to-commit' }
+    }
+
+    const blocker = getCommitBlocker(status)
+    if (blocker !== null) {
+      return { outcome: 'skipped', detail: blocker }
+    }
+
+    try {
+      const context =
+        (await this.generateCommitAllMessage(repository, files)) ??
+        ({ summary: getCommitSummary(files), description: null } as const)
+      const message = await formatCommitMessage(repository, context)
+      await createCommit(repository, message, files)
+      return { outcome: 'committed', detail: context.summary }
+    } finally {
+      await this.refreshAfterFetchAndPull(repository)
+    }
+  }
+
+  /** Ask Copilot for a commit message. Null when it cannot give one. */
+  private async generateCommitAllMessage(
+    repository: Repository,
+    files: ReadonlyArray<WorkingDirectoryFileChange>
+  ): Promise<ICommitContext | null> {
+    const account = getAccountForCommitMessageGeneration(
+      this.accounts,
+      repository
+    )
+    if (account === undefined) {
+      return null
+    }
+
+    try {
+      const diff = await getFilesDiffText(repository, files)
+      const { title, description } = enableCopilotSdkCommitMessageGeneration(
+        account
+      )
+        ? await this.copilotStore.generateCommitMessage(
+            account,
+            diff,
+            repository.path,
+            await this.resolveCopilotModelRequest(
+              this.getSelectedCopilotModels(account)[
+                'commit-message-generation'
+              ] ?? null
+            )
+          )
+        : await API.fromAccount(account).getDiffChangesCommitMessage(diff)
+
+      return title.trim().length > 0
+        ? { summary: title, description, messageGeneratedByCopilot: true }
+        : null
+    } catch (e) {
+      log.warn(`Commit all: no Copilot message for ${repository.path}`, e)
+      return null
     }
   }
 

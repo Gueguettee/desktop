@@ -12,6 +12,7 @@ import { createObservableRef } from '../lib/observable-ref'
 import { Tooltip } from '../lib/tooltip'
 import { enableAccessibleListToolTips } from '../../lib/feature-flag'
 import { TooltippedContent } from '../lib/tooltipped-content'
+import { isIncludedInCommitAll } from '../../lib/commit-all'
 
 interface IRepositoryListItemProps {
   readonly repository: Repositoryish
@@ -80,6 +81,7 @@ export class RepositoryListItem extends React.Component<
           renderRepoIndicators({
             aheadBehind: this.props.aheadBehind,
             hasChanges: hasChanges,
+            includedInCommitAll: isIncludedInCommitAll(repository),
           })}
       </div>
     )
@@ -109,6 +111,8 @@ export class RepositoryListItem extends React.Component<
     ) {
       return (
         nextProps.repository.id !== this.props.repository.id ||
+        isIncludedInCommitAll(nextProps.repository) !==
+          isIncludedInCommitAll(this.props.repository) ||
         nextProps.matches !== this.props.matches
       )
     } else {
@@ -120,9 +124,17 @@ export class RepositoryListItem extends React.Component<
 const renderRepoIndicators: React.FunctionComponent<{
   aheadBehind: IAheadBehind | null
   hasChanges: boolean
+  includedInCommitAll: boolean
 }> = props => {
   return (
     <div className="repo-indicators">
+      {props.includedInCommitAll && (
+        <TooltippedContent
+          className="commit-all-indicator"
+          tooltip="Included in “Commit all repositories”"
+          disabled={enableAccessibleListToolTips()}
+        />
+      )}
       {props.aheadBehind && renderAheadBehindIndicator(props.aheadBehind)}
       {props.hasChanges && renderChangesIndicator()}
     </div>

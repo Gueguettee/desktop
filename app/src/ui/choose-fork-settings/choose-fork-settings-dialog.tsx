@@ -114,6 +114,7 @@ export class ChooseForkSettings extends React.Component<
     this.props.dispatcher.updateRepositoryWorkflowPreferences(
       this.props.repository,
       {
+        ...this.props.repository.workflowPreferences,
         forkContributionTarget: this.state.forkContributionTarget,
       }
     )

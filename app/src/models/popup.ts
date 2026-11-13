@@ -29,6 +29,7 @@ import { TerminalOutput, TerminalOutputListener } from '../lib/git'
 import type { IBYOKModel, IBYOKProvider } from '../lib/copilot/byok'
 import { IDeleteWorktreeOptions, WorktreeEntry } from './worktree'
 import { IFetchAndPullResult } from '../lib/fetch-and-pull-all'
+import { ICommitAllResult } from '../lib/commit-all'
 
 export enum PopupType {
   RenameBranch = 'RenameBranch',
@@ -126,6 +127,7 @@ export enum PopupType {
   CopilotConflictResolutionAlwaysNudge = 'CopilotConflictResolutionAlwaysNudge',
   DeleteWorktreeFailed = 'DeleteWorktreeFailed',
   FetchAndPullAllResult = 'FetchAndPullAllResult',
+  CommitAllResult = 'CommitAllResult',
 }
 
 interface IBasePopup {
@@ -225,6 +227,10 @@ export type PopupDetail =
   | {
       type: PopupType.FetchAndPullAllResult
       results: ReadonlyArray<IFetchAndPullResult>
+    }
+  | {
+      type: PopupType.CommitAllResult
+      results: ReadonlyArray<ICommitAllResult>
     }
   | {
       type: PopupType.GenericGitAuthentication

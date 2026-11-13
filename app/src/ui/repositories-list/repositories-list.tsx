@@ -77,6 +77,9 @@ interface IRepositoriesListProps {
   /** Whether "Fetch and pull all repositories" is running. */
   readonly isFetchAndPullAllInProgress: boolean
 
+  /** Whether "Commit all repositories" is running. */
+  readonly isCommitAllInProgress: boolean
+
   readonly dispatcher: Dispatcher
 }
 
@@ -300,6 +303,8 @@ export class RepositoriesList extends React.Component<
       externalEditorLabel: this.props.externalEditorLabel,
       onChangeRepositoryAlias: this.onChangeRepositoryAlias,
       onRemoveRepositoryAlias: this.onRemoveRepositoryAlias,
+      onToggleIncludedInCommitAll:
+        this.props.dispatcher.toggleIncludedInCommitAll,
       onViewOnGitHub: this.props.onViewOnGitHub,
       onCreateWorktree: enableWorktreeSupport()
         ? this.onCreateWorktree
@@ -377,8 +382,25 @@ export class RepositoriesList extends React.Component<
       ? 'Fetch and Pull All Repositories'
       : 'Fetch and pull all repositories'
 
+    const isCommitting = this.props.isCommitAllInProgress
+    const commitLabel = __DARWIN__
+      ? 'Commit All Repositories'
+      : 'Commit all repositories'
+
     return (
       <>
+        <Button
+          className="fetch-and-pull-all-button"
+          onClick={this.onCommitAllButtonClick}
+          disabled={isCommitting}
+          ariaLabel={commitLabel}
+          tooltip={commitLabel}
+        >
+          <Octicon
+            className={isCommitting ? 'spin' : undefined}
+            symbol={isCommitting ? syncClockwise : octicons.gitCommit}
+          />
+        </Button>
         <Button
           className="fetch-and-pull-all-button"
           onClick={this.onFetchAndPullAllButtonClick}
@@ -402,6 +424,10 @@ export class RepositoriesList extends React.Component<
         </Button>
       </>
     )
+  }
+
+  private onCommitAllButtonClick = () => {
+    this.props.dispatcher.commitAllRepositories()
   }
 
   private onFetchAndPullAllButtonClick = () => {

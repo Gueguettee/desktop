@@ -19,6 +19,21 @@ The code is in `app/src/lib/fetch-and-pull-all.ts`,
 `AppStore._fetchAndPullAllRepositories` and
 `app/src/ui/fetch-and-pull-all/`.
 
+**Commit all repositories.** A commit button beside the sync button. For every
+repository included in "Commit all", it commits all the changes, untracked
+files too, in one commit, without pushing. Copilot writes the message when a
+signed-in account can use it; otherwise the summary names the changed files,
+as in "Update a.ts and 2 other files". A summary lists what was committed,
+had nothing to commit, was skipped and failed.
+
+Every repository is included by default, shown by a green dot in the
+repository list. Right-click a repository and untick "Include in commit all"
+to leave it out. A repository is skipped when it has no branch checked out or
+is in the middle of a merge, rebase or cherry-pick.
+
+The code is in `app/src/lib/commit-all.ts`, `AppStore._commitAllRepositories`
+and `app/src/ui/commit-all/`.
+
 ## Installing on Windows
 
 1. On GitHub, open **Actions**, pick **Build Windows installer** and click
@@ -49,4 +64,5 @@ stay easy.
 
 Follow `docs/contributing/setup.md`. In short: `yarn`, then `yarn build:dev`
 and `yarn start`. Checks: `yarn lint` and
-`yarn test app/test/unit/fetch-and-pull-all-test.ts`.
+`yarn test app/test/unit/fetch-and-pull-all-test.ts
+app/test/unit/commit-all-test.ts`.

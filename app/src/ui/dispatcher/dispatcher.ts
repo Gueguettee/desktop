@@ -1,5 +1,6 @@
 import { Disposable } from 'event-kit'
 
+import { isIncludedInCommitAll } from '../../lib/commit-all'
 import {
   IAPIOrganization,
   IAPIPullRequest,
@@ -766,6 +767,18 @@ export class Dispatcher {
   public fetchAndPullAllRepositories(): Promise<void> {
     return this.appStore._fetchAndPullAllRepositories()
   }
+
+  /** Commit all changes of every repository included in "Commit all". */
+  public commitAllRepositories(): Promise<void> {
+    return this.appStore._commitAllRepositories()
+  }
+
+  /** Include the repository in "Commit all", or leave it out. */
+  public toggleIncludedInCommitAll = (repository: Repository) =>
+    this.updateRepositoryWorkflowPreferences(repository, {
+      ...repository.workflowPreferences,
+      includedInCommitAll: !isIncludedInCommitAll(repository),
+    })
 
   /** Fetch a specific refspec for the repository. */
   public fetchRefspec(

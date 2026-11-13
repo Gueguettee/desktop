@@ -76,6 +76,7 @@ export class Repository {
       this.missing,
       this.alias,
       this.workflowPreferences.forkContributionTarget,
+      this.workflowPreferences.includedInCommitAll,
       this.isTutorialRepository
     )
   }

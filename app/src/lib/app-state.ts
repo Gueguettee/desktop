@@ -357,6 +357,9 @@ export interface IAppState {
   /** Whether "Fetch and pull all repositories" is running. */
   readonly isFetchAndPullAllInProgress: boolean
 
+  /** Whether "Commit all repositories" is running. */
+  readonly isCommitAllInProgress: boolean
+
   /**
    * Whether or not the app should use spell check on commit summary and description
    */
