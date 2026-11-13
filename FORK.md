@@ -65,9 +65,9 @@ extra Test menu. The other upstream workflows are disabled on this fork.
 
 `.github/workflows/follow-upstream.yml` merges the latest official release
 tag into `development` every day, which starts a build. It needs the
-repository secret `UPSTREAM_SYNC_TOKEN`: a fine-grained personal access token
-for this repository with **Contents** and **Workflows** set to read and
-write. When a merge conflicts, the run fails and GitHub emails you; merge by
+repository secret `UPSTREAM_SYNC_TOKEN`: the fine-grained personal access
+token `desktop-fork-follow-upstream`, limited to this repository, with
+**Contents** and **Workflows** set to read and write. It has no expiry date. When a merge conflicts, the run fails and GitHub emails you; merge by
 hand:
 
 ```bash
