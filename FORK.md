@@ -83,7 +83,7 @@ stay easy.
 
 ## Building
 
-Follow `docs/contributing/setup.md`. In short: `yarn`, then `yarn build:dev`
-and `yarn start`. Checks: `yarn lint` and
-`yarn test app/test/unit/fetch-and-pull-all-test.ts
+Follow `docs/contributing/setup.md`. In short: `npm ci`, then `npm run build:dev`
+and `npm start`. Checks: `npm run lint` and
+`npm test -- app/test/unit/fetch-and-pull-all-test.ts
 app/test/unit/commit-all-test.ts`.

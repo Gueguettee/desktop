@@ -49,12 +49,12 @@ jobs:
         with:
           node-version: 24.22.1
           arch: x64
-      - run: yarn build:prod
+      - run: npm run build:prod
         env:
           npm_config_arch: x64
           TARGET_ARCH: x64
       # Unsigned: without GITHUB_ACTIONS it skips GitHub's own signing setup.
-      - run: env -u GITHUB_ACTIONS yarn package
+      - run: env -u GITHUB_ACTIONS npm run package
         env:
           npm_config_arch: x64
       - name: Publish the release
