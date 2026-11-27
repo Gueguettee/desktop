@@ -113,9 +113,9 @@ async function assignedAccountHarness(t: TestContext) {
 }
 
 describe('assisted runs with repository-assigned accounts', () => {
-  for (const withdrawRollout of [false, true]) {
-    it(`uses an account rollout outside preview and ${
-      withdrawRollout ? 'revokes' : 'retains'
+  for (const withdrawPreview of [false, true]) {
+    it(`uses preview access and ${
+      withdrawPreview ? 'revokes' : 'retains'
     } its prepared intent`, async t => {
       const source = await seed(t, { file: 'before\n' })
       await writeFile(join(source.path, 'file'), 'selected\n')
@@ -138,22 +138,21 @@ describe('assisted runs with repository-assigned accounts', () => {
       )
       h.stores.accountsStore['credentials'].inheritSession(original, account)
       h.appStore['accounts'] = [account]
-      delete process.env.GITHUB_DESKTOP_PREVIEW_FEATURES
       assert.equal(await h.assisted.context.isAvailable(repository), true)
       const prepared = await h.dispatcher.prepareCopilotAssistedCommitRequest(
         repository,
         h.request(repository)
       )
-      if (withdrawRollout) {
-        h.appStore['accounts'] = [original]
+      if (withdrawPreview) {
+        delete process.env.GITHUB_DESKTOP_PREVIEW_FEATURES
       }
       const outcome = await h.dispatcher.createCopilotAssistedCommits(
         repository,
         prepared
       )
-      assert.equal(outcome.kind, withdrawRollout ? 'error' : 'local-ready')
-      assert.equal(h.propose.mock.callCount(), withdrawRollout ? 0 : 1)
-      assert.equal(await count(repository), withdrawRollout ? 1 : 2)
+      assert.equal(outcome.kind, withdrawPreview ? 'error' : 'local-ready')
+      assert.equal(h.propose.mock.callCount(), withdrawPreview ? 0 : 1)
+      assert.equal(await count(repository), withdrawPreview ? 1 : 2)
     })
   }
 
@@ -527,6 +526,12 @@ describe('assisted runs with repository-assigned accounts', () => {
     const result = await operation
     assert.equal(aborted, true)
     assert.equal(result.kind, 'error')
+    const measures = await h.measures()
+    assert.equal(measures.copilotAssistedCommitErrorCount, 1)
+    assert.equal(measures.copilotAssistedCommitCancelledCount, 0)
+    assert.equal(measures.copilotAssistedCommitAcceptedCount, 0)
+    assert.ok(run.authorizationError)
+    assert.notStrictEqual(run.cancelledByUser, true)
     assert.equal(h.appStore['accounts'].length, 2)
     assert.equal(await count(h.repository), 1)
     assert.equal(h.commits.mock.callCount(), 0)
@@ -555,6 +560,11 @@ describe('assisted runs with repository-assigned accounts', () => {
     )
     assert.equal(reassigned, true)
     assert.equal(result.kind, 'error')
+    const measures = await h.measures()
+    assert.equal(measures.copilotAssistedCommitErrorCount, 1)
+    assert.equal(measures.copilotAssistedCommitCancelledCount, 0)
+    assert.equal(measures.copilotAssistedCommitAcceptedCount, 0)
+    assert.equal(measures.copilotAssistedCommitRecoverySuccessCount, 1)
     assert.equal(
       await rawGit(h.repository, ['rev-parse', 'HEAD']),
       originalHead
@@ -629,6 +639,10 @@ describe('assisted runs on upstream credential and worktree APIs', () => {
       )
       assert.equal(result.kind, 'local-ready')
       assert.equal(h.renewals(), 1)
+      const measures = await h.measures()
+      assert.equal(measures.copilotAssistedCommitAcceptedCount, 1)
+      assert.equal(measures.copilotAssistedCommitErrorCount, 0)
+      assert.equal(measures.copilotAssistedCommitCancelledCount, 0)
       assert.equal(h.appStore['accounts'][0].token, 'rotated-access-1')
       assert.equal(h.propose.mock.callCount(), 1)
       assert.equal(await count(repository), 2)
@@ -727,6 +741,10 @@ describe('assisted runs on upstream credential and worktree APIs', () => {
       assert.equal(await count(repository), 1)
       assert.equal(h.commits.mock.callCount(), 0)
       assert.equal(h.propose.mock.callCount(), phase === 'first-click' ? 0 : 1)
+      const measures = await h.measures()
+      assert.equal(measures.copilotAssistedCommitErrorCount, 1)
+      assert.equal(measures.copilotAssistedCommitCancelledCount, 0)
+      assert.equal(measures.copilotAssistedCommitAcceptedCount, 0)
     })
   }
 
@@ -850,6 +868,48 @@ describe('assisted run account and BYOK authorization', () => {
       finish.resolve()
       await operation
     }
+    const measures = await h.measures()
+    assert.equal(measures.copilotAssistedCommitCancelledCount, 1)
+    assert.equal(measures.copilotAssistedCommitErrorCount, 0)
+  })
+
+  it('retains explicit cancellation attribution when authorization changes afterward', async t => {
+    const source = await seed(t, { file: 'before\n' })
+    await writeFile(join(source.path, 'file'), 'selected\n')
+    const h = await createAssistedCommitRunHarness(t)
+    const repository = await h.register(source)
+    const analyzing = deferred<void>()
+    const finish = deferred<void>()
+    h.propose.mock.mockImplementation(async (_account, analysis) => {
+      analyzing.resolve()
+      await finish.promise
+      return wholeSelectionResponse(analysis)
+    })
+    const operation = h.dispatcher.createCopilotAssistedCommits(
+      repository,
+      h.request(repository)
+    )
+    await analyzing.promise
+    const run = h.assisted.state.runs.get(repository.id)
+    assert.ok(run)
+    try {
+      h.cancel(repository)
+      assert.strictEqual(run.cancelledByUser, true)
+      h.appStore['accounts'] = []
+      h.assisted.context.abortUnauthorized()
+      assert.ok(run.authorizationError)
+      assert.strictEqual(run.controller.signal.aborted, true)
+      assert.strictEqual(run.cancelledByUser, true)
+    } finally {
+      finish.resolve()
+    }
+    const result = await operation
+    assert.equal(result.kind, 'error')
+    const measures = await h.measures()
+    assert.equal(measures.copilotAssistedCommitCancelledCount, 1)
+    assert.equal(measures.copilotAssistedCommitErrorCount, 0)
+    assert.equal(measures.copilotAssistedCommitAcceptedCount, 0)
+    assert.equal(await count(repository), 1)
   })
 
   for (const change of ['deleted', 'changed'] as const) {

@@ -456,6 +456,35 @@ describe('CommitMessage', () => {
       fireEvent.click(screen.getByText('Commit', { selector: '.option-title' }))
     }
 
+    it('reports real choices, not restored modes, no-op selection, rerenders or busy input', () => {
+      let opened = 0
+      const switches: CommitMode[] = []
+      const { rerender } = renderWithCommitModes({
+        commitMode: 'copilot',
+        onCommitModeDropdownOpened: () => opened++,
+        onCommitModeChanged: mode => switches.push(mode),
+      })
+      assert.strictEqual(opened, 0)
+      assert.deepStrictEqual(switches, [])
+      switchToCopilotMode()
+      assert.strictEqual(opened, 1)
+      assert.deepStrictEqual(switches, [])
+      rerender({ commitMode: 'manual' })
+      assert.deepStrictEqual(switches, [])
+      const button = screen.getByRole('button', {
+        name: 'Choose how to commit',
+      })
+      fireEvent.keyDown(button, { key: 'ArrowUp' })
+      fireEvent.keyDown(screen.getByRole('menu'), { key: 'Enter' })
+      assert.strictEqual(opened, 2)
+      assert.deepStrictEqual(switches, ['copilot'])
+      rerender({ commitMode: 'copilot', isCommitting: true })
+      fireEvent.click(button)
+      fireEvent.keyDown(button, { key: 'ArrowDown' })
+      assert.strictEqual(opened, 2)
+      assert.deepStrictEqual(switches, ['copilot'])
+    })
+
     it('does not offer commit modes when Copilot-assisted commits are unavailable', () => {
       storeCommitMode(createMountableRepository(), 'copilot')
       const { requests, props } = renderWithCommitModes({
@@ -471,7 +500,7 @@ describe('CommitMessage', () => {
       assert.strictEqual(requests.length, 0)
     })
 
-    it('offers assisted commit modes for an opted-in account without preview features', () => {
+    it('does not offer assisted commit modes for an opted-in account without preview features', () => {
       const account = createAccount()
       const { rerender } = renderWithCommitModes()
       delete process.env[PreviewFeaturesEnv]
@@ -492,9 +521,10 @@ describe('CommitMessage', () => {
           ),
         ],
       })
-      assert.ok(screen.getByRole('button', { name: 'Choose how to commit' }))
-      switchToCopilotMode()
-      assert.ok(screen.getByText('Let Copilot write your commits'))
+      assert.equal(
+        screen.queryByRole('button', { name: 'Choose how to commit' }),
+        null
+      )
     })
 
     it('does not offer commit modes when the feature is disabled', () => {
